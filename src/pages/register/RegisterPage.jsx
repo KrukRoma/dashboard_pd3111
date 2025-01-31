@@ -7,21 +7,28 @@ import {
     FormLabel,
     Divider,
     Button,
-    Box
+    Box,
+    Select,
+    MenuItem
 } from '@mui/material';
 import {useFormik} from 'formik';
 import * as Yup from 'yup';
 import {FieldError} from '../../components/errors/Errors';
 import {Link, useNavigate} from 'react-router-dom';
 import useAction from "../../hooks/useAction";
+import { useSelector } from "react-redux";
 
 const RegisterPage = () => {
     const navigate = useNavigate();
     const {register} = useAction();
-
+    const { user, isAuth } = useSelector(state => state.auth);
+    
     const formSubmit = (values) => {
         delete values.confirmPassword;
-        values.role = "user";
+        
+        if (!isAuth || user.role !== "admin") {
+            values.role = "user"; // якщо звичайний користувач реєструється сам
+        }
 
         register(values);
         navigate("/");
@@ -34,7 +41,8 @@ const RegisterPage = () => {
         email: "",
         password: "",
         confirmPassword: "",
-        image: ""
+        image: "",
+        role: "user"
     };
 
     // validation scheme with yup
@@ -44,7 +52,8 @@ const RegisterPage = () => {
         email: Yup.string().email("Не вірний формат пошти").required("Обов'язкове поле"),
         password: Yup.string().min(6, "Мінімальна довжина паролю 6 символів"),
         confirmPassword: Yup.string().oneOf([Yup.ref('password')], 'Паролі не збігаються'),
-        image: Yup.string()
+        image: Yup.string().url("Некоректний URL"), // Валідація URL
+        role: Yup.string().oneOf(["user", "admin"], "Некоректна роль")
     });
 
     // formik
@@ -155,7 +164,7 @@ const RegisterPage = () => {
                     ) : null}
                 </FormControl>
                 <FormControl>
-                    <FormLabel htmlFor="image">Avatar</FormLabel>
+                    <FormLabel htmlFor="image">Avatar (URL)</FormLabel>
                     <TextField
                         fullWidth
                         name="image"
@@ -166,12 +175,31 @@ const RegisterPage = () => {
                         value={formik.values.image}
                         onBlur={formik.handleBlur}
                     />
+                    {formik.touched.image && formik.errors.image ? (
+                        <FieldError text={formik.errors.image}/>
+                    ) : null}
                 </FormControl>
-                <Button
-                    type="submit"
-                    fullWidth
-                    variant="contained"
-                >
+
+                {/* Вибір ролі (доступно тільки адміну) */}
+                {isAuth && user.role === "admin" && (
+                    <FormControl>
+                        <FormLabel htmlFor="role">Role</FormLabel>
+                        <Select
+                            name="role"
+                            value={formik.values.role}
+                            onChange={formik.handleChange}
+                            onBlur={formik.handleBlur}
+                        >
+                            <MenuItem value="user">User</MenuItem>
+                            <MenuItem value="admin">Admin</MenuItem>
+                        </Select>
+                        {formik.touched.role && formik.errors.role ? (
+                            <FieldError text={formik.errors.role}/>
+                        ) : null}
+                    </FormControl>
+                )}
+
+                <Button type="submit" fullWidth variant="contained">
                     Sign up
                 </Button>
             </Box>
@@ -181,11 +209,7 @@ const RegisterPage = () => {
             <Box sx={{display: 'flex', flexDirection: 'column', gap: 2}}>
                 <Typography sx={{textAlign: 'center'}}>
                     Already have an account?{' '}
-                    <Link
-                        to="/login"
-                    >
-                        Sign in
-                    </Link>
+                    <Link to="/login">Sign in</Link>
                 </Typography>
             </Box>
         </Container>
